@@ -14,9 +14,13 @@
 
 #include <stdlib.h> /* For strtod */
 #include <math.h> /* For pow */
+#include <errno.h> /* For errno */
+#include <assert.h> /* For asserts */
 #include "stack.h" /* Stack */
 #include "calculator.h" /* API */
 
+
+#define LUT_SIZE 256
 #define DUMMY 39 /* ' */
 
 typedef struct stacks stacks_t;
@@ -62,9 +66,10 @@ static char* SyntaxError(char* input, stacks_t* stacks);
 static char* SkipSpace(char* input, stacks_t* stacks);
 static char* HandleOperator(char* input, stacks_t* stacks);
 static char* HandleOperand(char* input, stacks_t* stacks);
-static char* OperatorCalculation(char* input, stacks_t* stacks);
+static char* CalculateByPriorities(char* input, stacks_t* stacks);
 static char* HandleFinish(char* input, stacks_t* stacks);
 static char* ParanthesesCalculation(char* input, stacks_t* stacks);
+static void SingleOperatorCalculation(stacks_t* stacks);
 
 static void InitMathLUT();
 static void InitStatesLUT();
@@ -76,9 +81,9 @@ static void DestroyStacks(stacks_t* stacks);
 
 /**************************** GLOBAL VARIABLES & LUT ****************************/
 
-transition_t states_LUT[2][256] = {NULL};  /* State transition lookup table */
-math_func_t math_LUT[256] = {NULL};        /* Math function lookup table */
-int priorities_LUT[256] = {0};             /* Operator precedence lookup table */
+transition_t states_LUT[2][LUT_SIZE] = {NULL};  /* State transition lookup table */
+math_func_t math_LUT[LUT_SIZE] = {NULL};        /* Math function lookup table */
+int priorities_LUT[LUT_SIZE] = {0};             /* Operator precedence lookup table */
 
 static calc_status_t status;
 									
@@ -89,7 +94,10 @@ calc_status_t Calculate(double* result, const char* input)
 	states_t state;
 	stacks_t stacks;
 	int current_char_location;
-
+	
+	assert (NULL != input);
+	assert (NULL != result);
+	
 	status = InitMain(&stacks, &state);  /* Initialize stacks and state machine */
 
 	/* Process each character of the input until the finish state is reached */
@@ -118,10 +126,52 @@ calc_status_t Calculate(double* result, const char* input)
 
 		/******************** MATH FUNCTIONS ********************/
 
-static double Add(double num1, double num2) { return (num1 + num2); }
-static double Sub(double num1, double num2){ return (num1 - num2); }
-static double Mul(double num1, double num2){ return (num1 * num2); }
-static double Pow(double base, double power){ return (pow(base, power)); }
+static double Add(double num1, double num2) 
+{ 
+	double res = num1 + num2;
+	
+	if (errno == ERANGE)
+    {
+       status = OUT_OF_BOUNDS;
+    }
+    
+	return (res); 
+}
+static double Sub(double num1, double num2)
+{ 
+	double res = num1 - num2;
+	
+	if (errno == ERANGE)
+    {
+       status = OUT_OF_BOUNDS;
+    }
+    
+	return (res); 
+}
+
+static double Mul(double num1, double num2)
+{ 
+	double res = num1 * num2;
+	
+	if (errno == ERANGE)
+    {
+       status = OUT_OF_BOUNDS;
+    }
+    
+	return (res); 
+}
+
+static double Pow(double base, double power)
+{ 
+	double res = pow(base, power);
+	
+	if (errno == ERANGE)
+    {
+       status = OUT_OF_BOUNDS;
+    }
+    
+	return (res); 
+}
 
 /* Invalid operation handler */
 static double Invalid(double num1, double num2)
@@ -147,30 +197,20 @@ static double Divide(double num1, double num2)
 		/******************** LUT FUNCTIONS ********************/
 
 
-static char* HandleNegativeNumber(char* input, stacks_t* stacks)
-{
-	double res = 0;
-	char* remainder = NULL;
-
-	/* Move past the '-' sign */
-	++input;
-
-	/* Parse the negative number */
-	res = -strtod(input, &remainder);
-
-	Push(stacks->operands_stack, &res);
-
-	return (remainder);
-}
-	
 static char* SkipSpace(char* input, stacks_t* stacks)
 {
+	assert (NULL != input);
+	assert (NULL != stacks);
 	(void) stacks;
 	return (++input);
 }
 
+
 static char* SyntaxError(char* input, stacks_t* stacks)
 {
+	assert (NULL != input);
+	assert (NULL != stacks);
+	
 	(void) input;
 	(void) stacks;
 	
@@ -181,8 +221,11 @@ static char* SyntaxError(char* input, stacks_t* stacks)
 
 static char* HandleOperator(char* input, stacks_t* stacks)
 {
-	Push(stacks->operators_stack, input);
-
+	assert (NULL != input);
+	assert (NULL != stacks);
+	
+    /* Push current operator */
+    Push(stacks->operators_stack, input);
 	return (++input);
 }
 
@@ -190,49 +233,71 @@ static char* HandleOperator(char* input, stacks_t* stacks)
 static char* HandleOperand(char* input, stacks_t* stacks)
 {
 	char* remainder = NULL;
-	double res = strtod(input, &remainder);
+	double res = 0;
+	errno = 0;
+	
+	assert (NULL != input);
+	assert (NULL != stacks);
+	
+	res = strtod(input, &remainder);
+	
+	if (remainder == input)
+	{
+		status = INVALID_SYNTAX;
+	}
+	
+	if(errno == ERANGE)
+    {
+       status = OUT_OF_BOUNDS;
+    }
 	
 	Push(stacks->operands_stack, &res);
 
 	return (remainder);
 }
 
-
-static char* OperatorCalculation(char* input, stacks_t* stacks)
+static void SingleOperatorCalculation(stacks_t* stacks)
 {
 	double first_num = 0, second_num = 0, res = 0;
-	char operator;
+	char operator = '\0';
+	
+	assert (NULL != stacks);
+	
+	second_num = *(double*) Peek(stacks->operands_stack);
+	Pop(stacks->operands_stack);
+
+	first_num = *(double*) Peek(stacks->operands_stack);
+	Pop(stacks->operands_stack);
+
+	operator = *(char*) Peek(stacks->operators_stack);
+	Pop(stacks->operators_stack);
+
+	res = math_LUT[(int) operator](first_num, second_num); /* Perform the operation */
+	Push(stacks->operands_stack, &res); /* Push result back to operand stack */	
+}
+
+static char* CalculateByPriorities(char* input, stacks_t* stacks)
+{	
+	assert (NULL != input);
+	assert (NULL != stacks);
 	
 	/* Check if operator precedence allows for calculation */
-	if (priorities_LUT[(int)*(char*)Peek(stacks->operators_stack)] >= priorities_LUT[(int)*input])
+	while (priorities_LUT[(int)*(char*)Peek(stacks->operators_stack)] >= priorities_LUT[(int)*input])
 	{
-		second_num = *(double*) Peek(stacks->operands_stack);
-		Pop(stacks->operands_stack);
-		
-		first_num = *(double*) Peek(stacks->operands_stack);
-		Pop(stacks->operands_stack);
-		
-		operator = *(char*) Peek(stacks->operators_stack);
-		Pop(stacks->operators_stack);
-		
-		res = math_LUT[(int) operator](first_num, second_num); /* Perform the operation */
-		Push(stacks->operands_stack, &res); /* Push result back to operand stack */	
+		SingleOperatorCalculation(stacks);
 	}
 	
-	/* If operator precedence allows, handle operator */
-	if (priorities_LUT[(int)*input] > 0)
-	{
-			input = HandleOperator(input, stacks);
-	}
-	
-	return (input);
+	return (HandleOperator(input, stacks));
 }
 
 static char* HandleFinish(char* input, stacks_t* stacks)
 {
+	assert (NULL != input);
+	assert (NULL != stacks);
+	
 	while (1 != Size(stacks->operators_stack))
 	{
-		input = OperatorCalculation(input, stacks); /* Perform remaining calculations */
+		SingleOperatorCalculation(stacks); /* Perform remaining calculations */
 	}
 	
 	return (input); /* Return input for final state transition */
@@ -240,11 +305,17 @@ static char* HandleFinish(char* input, stacks_t* stacks)
 
 static char* ParanthesesCalculation(char* input, stacks_t* stacks)
 {
-	char operator = *(char*) Peek(stacks->operators_stack);
-	while ('(' != operator && DUMMY != (int) operator)
+	char operator = '\0';
+	
+	assert (NULL != input);
+	assert (NULL != stacks);
+	
+	operator = *(char*) Peek(stacks->operators_stack);
+	
+	while (SUCCESS == status && '(' != operator && DUMMY != (int) operator)
 	{
 		/* Perform calculations within parentheses */
-		OperatorCalculation(input, stacks); 
+		SingleOperatorCalculation(stacks);
 		operator = *(char*) Peek(stacks->operators_stack);
 	}
 	
@@ -262,6 +333,10 @@ static calc_status_t InitMain(stacks_t* stacks, states_t* state)
 	static int inits_flag = 0;
 	char char_dummy = (char) DUMMY;
 	double double_dummy = (double) DUMMY;
+	
+	assert (NULL != state);
+	assert (NULL != stacks);
+	
 	*state = WAITING_OPERANDS_STATE;
 	
 	if (1 == InitStacks(stacks))
@@ -286,7 +361,7 @@ static calc_status_t InitMain(stacks_t* stacks, states_t* state)
 static void InitMathLUT()
 {
 	size_t i = 0;
-	for (i = 0 ; i < 256 ; ++i) 
+	for (i = 0 ; i < LUT_SIZE ; ++i) 
 	{
         math_LUT[i] = Invalid; 
     }
@@ -305,16 +380,15 @@ static void InitStatesLUT()
 	transition_t handle_operator_transition = {HandleOperator, WAITING_OPERANDS_STATE};
 	transition_t handle_space_operand = {SkipSpace, WAITING_OPERANDS_STATE};
 	transition_t handle_space_operator = {SkipSpace, WAITING_OPERATOR_STATE};
-	transition_t handle_negative_number = {HandleNegativeNumber, WAITING_OPERATOR_STATE};
 	
-	transition_t handle_operator_calculation = {OperatorCalculation, WAITING_OPERANDS_STATE};
+	transition_t handle_operator_calculation = {CalculateByPriorities, WAITING_OPERANDS_STATE};
 	transition_t handle_parantheses_claculation = {ParanthesesCalculation, WAITING_OPERATOR_STATE};
 	transition_t handle_finish = {HandleFinish, FINISH_STATE};
 	
 	size_t i = 0;
 	
 	
-	for (i = 0 ; i < 256 ; ++i) 
+	for (i = 0 ; i < LUT_SIZE ; ++i) 
 	{
         states_LUT[WAITING_OPERATOR_STATE][i] = error_transition;
         states_LUT[WAITING_OPERANDS_STATE][i] = error_transition;
@@ -325,6 +399,8 @@ static void InitStatesLUT()
     	states_LUT[WAITING_OPERANDS_STATE][i + '0'] = handle_operand_transition;
     }
 	
+	states_LUT[WAITING_OPERANDS_STATE]['-'] = handle_operand_transition;
+	states_LUT[WAITING_OPERANDS_STATE]['+'] = handle_operand_transition;
 	
 	states_LUT[WAITING_OPERANDS_STATE]['('] = handle_operator_transition;
 
@@ -333,7 +409,6 @@ static void InitStatesLUT()
 
 	states_LUT[WAITING_OPERATOR_STATE]['+'] = handle_operator_calculation;
 	states_LUT[WAITING_OPERATOR_STATE]['-'] = handle_operator_calculation;
-	states_LUT[WAITING_OPERANDS_STATE]['-'] = handle_negative_number;
 	states_LUT[WAITING_OPERATOR_STATE]['*'] = handle_operator_calculation;
 	states_LUT[WAITING_OPERATOR_STATE]['/'] = handle_operator_calculation;
 	states_LUT[WAITING_OPERATOR_STATE]['^'] = handle_operator_calculation;
@@ -347,14 +422,7 @@ static void InitStatesLUT()
 
 
 static void InitPrioritiesLUT()
-{
-	size_t i = 0;
-	
-	for (i = 0 ; i < 256 ; ++i)
-	{
-		priorities_LUT[i] = 0; /* Default operator precedence is 0 */
-	}
-	
+{	
 	/* Addition and subtraction have lowest precedence */
 	priorities_LUT['+'] = 1;
 	priorities_LUT['-'] = 1;
@@ -372,6 +440,8 @@ static void InitPrioritiesLUT()
 
 static int InitStacks(stacks_t* stacks)
 {
+	assert (NULL != stacks);
+	
 	stacks->operands_stack = Create(100, sizeof(double));
 	if (NULL == stacks->operands_stack)
 	{
@@ -390,8 +460,8 @@ static int InitStacks(stacks_t* stacks)
 
 static void DestroyStacks(stacks_t* stacks)
 {
+	assert (NULL != stacks);
 	Destroy(stacks->operands_stack);
 	Destroy(stacks->operators_stack);
 }
-
 
