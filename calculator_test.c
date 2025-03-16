@@ -8,6 +8,7 @@
 void TestValidSyntax();
 void TestEdgeCases();
 void TestInvalidSyntax();
+void TestMentor();
 
 int main(void)
 {
@@ -17,6 +18,8 @@ int main(void)
     TestEdgeCases();
     printf("\n---- 🙏️ Testing Invalid Syntax 🙏️ ----\n");
     TestInvalidSyntax();
+    printf("\n---- 🙏️ Testing Mentor 🙏️ ----\n");
+    TestMentor();
     printf("\n\nDon't forget to check valgrind! 🤭️\n\n");
 	
     return (0);
@@ -111,6 +114,30 @@ void TestValidSyntax()
     else 
     {
         printf(RED "Failed. Expected Result: -13.0, Received: %f, Status: %d\n" UNFORMAT, result, status);
+    }
+    
+    /* Test 8: Ofir's test */
+    printf("TestValidSyntax 8: 5 * 3 - 4 / 2 -10 -1 = ");
+    status = Calculate(&result, "5*3-4/2-10-1");
+    if (status == SUCCESS && result == 2.0) 
+    {
+        printf(GREEN "Passed\n" UNFORMAT);
+    } 
+    else 
+    {
+        printf(RED "Failed. Expected Result: 2.0, Received: %f, Status: %d\n" UNFORMAT, result, status);
+    }
+    
+     /* Test 9: Ofir's test */
+    printf("TestValidSyntax 9: 8 + + 8 = ");
+    status = Calculate(&result, "8++8");
+    if (status == SUCCESS && result == 16.0) 
+    {
+        printf(GREEN "Passed\n" UNFORMAT);
+    } 
+    else 
+    {
+        printf(RED "Failed. Expected Result: 16.0, Received: %f, Status: %d\n" UNFORMAT, result, status);
     }
 }
 
@@ -228,19 +255,6 @@ void TestEdgeCases()
     {
         printf(RED "Failed. Expected Result: -5.0, Received: %f, Status: %d\n" UNFORMAT, result, status);
     }
-    
-    /* Test 10: Double negative without parentheses */
-    printf("TestEdgeCases 10: --5 = ");
-    status = Calculate(&result, "--5");
-    if (status == SUCCESS && result == 5.0) 
-    {
-        printf(GREEN "Passed\n" UNFORMAT);
-    } 
-    else 
-    {
-        printf(RED "Failed. Expected Result: 5.0, Received: %f, Status: %d\n" UNFORMAT, result, status);
-    }
-
 }
 
 /********************** Invalid Syntax Tests **********************/
@@ -262,20 +276,9 @@ void TestInvalidSyntax()
         printf(RED "Failed. Expected Status: %d, Received: %d\n" UNFORMAT, INVALID_SYNTAX, status);
     }
 
-    /* Test 2: Extra operator without operand */
-    printf("TestInvalidSyntax 2: 5 * + 2 = ");
-    status = Calculate(&result, "5*+2");
-    if (status == INVALID_SYNTAX) 
-    {
-        printf(GREEN "Passed\n" UNFORMAT);
-    } 
-    else 
-    {
-        printf(RED "Failed. Expected Status: %d, Received: %d\n" UNFORMAT, INVALID_SYNTAX, status);
-    }
 
-    /* Test 3: Unmatched parentheses */
-    printf("TestInvalidSyntax 3: (3 + 5 = ");
+    /* Test 2: Unmatched parentheses */
+    printf("TestInvalidSyntax 2: (3 + 5 = ");
     status = Calculate(&result, "(3+5");
     if (status == INVALID_SYNTAX) 
     {
@@ -286,20 +289,9 @@ void TestInvalidSyntax()
         printf(RED "Failed. Expected Status: %d, Received: %d\n" UNFORMAT, INVALID_SYNTAX, status);
     }
 
-    /* Test 4: Multiple operators together */
-    printf("TestInvalidSyntax 4: 5 ++ 2 = ");
-    status = Calculate(&result, "5++2");
-    if (status == INVALID_SYNTAX) 
-    {
-        printf(GREEN "Passed\n" UNFORMAT);
-    } 
-    else 
-    {
-        printf(RED "Failed. Expected Status: %d, Received: %d\n" UNFORMAT, INVALID_SYNTAX, status);
-    }
 
-    /* Test 5: Empty input */
-    printf("TestInvalidSyntax 5: empty input = ");
+    /* Test 3: Empty input */
+    printf("TestInvalidSyntax 3: empty input = ");
     status = Calculate(&result, "");
     if (status == INVALID_SYNTAX) 
     {
@@ -311,9 +303,21 @@ void TestInvalidSyntax()
     }
 
 
-    /* Test 6: Negative sign misplaced */
-    printf("TestInvalidSyntax 6: 5 - * 3 = ");
+    /* Test 4: Negative sign misplaced */
+    printf("TestInvalidSyntax 4: 5 - * 3 = ");
     status = Calculate(&result, "5-*3");
+    if (status == INVALID_SYNTAX) 
+    {
+        printf(GREEN "Passed\n" UNFORMAT);
+    } 
+    else 
+    {
+        printf(RED "Failed. Expected Status: %d, Received: %d\n" UNFORMAT, INVALID_SYNTAX, status);
+    }
+    
+    /* Test 5: Double negative without parentheses */
+    printf("TestInvalidSyntax 5: --5 = ");
+    status = Calculate(&result, "--5");
     if (status == INVALID_SYNTAX) 
     {
         printf(GREEN "Passed\n" UNFORMAT);
@@ -324,3 +328,118 @@ void TestInvalidSyntax()
     }
 }
 
+void TestMentor()
+{
+	double result;
+    int status;
+
+    /* Test 1 */
+    printf("TestMentor 1: 7 + 8 = ");
+    status = Calculate(&result, "7+8");
+    if (status == SUCCESS && result == 15) 
+    {
+        printf(GREEN "Passed\n" UNFORMAT);
+    } 
+    else 
+    {
+        printf(RED "Failed. Expected Result: 15.0, Received: %f, Status: %d\n" UNFORMAT, result, status);
+    }
+    
+    /* Test 2 */
+    printf("TestMentor 2: 8 + 8 * 3 + - 2 ^ 5 = ");
+    status = Calculate(&result, "8+8*3+-2^5");
+    if (status == SUCCESS && result == 0) 
+    {
+        printf(GREEN "Passed\n" UNFORMAT);
+    } 
+    else 
+    {
+        printf(RED "Failed. Expected Result: 0, Received: %f, Status: %d\n" UNFORMAT, result, status);
+    }
+    
+
+    /* Test 3 */
+    printf("TestMentor 3: 8 + 8 * 3 - 2 ^ = ");
+    status = Calculate(&result, "8+8*3-2^");
+    if (status == INVALID_SYNTAX) 
+    {
+        printf(GREEN "Passed\n" UNFORMAT);
+    } 
+    else 
+    {
+        printf(RED "Failed. Expected Status: %d Received: %d\n" UNFORMAT, INVALID_SYNTAX, status);
+    }
+    
+    /* Test 4 */
+    printf("TestMentor 4: 2 / 0 = ");
+    status = Calculate(&result, "2/0");
+    if (status == DIV_BY_ZERO) 
+    {
+        printf(GREEN "Passed\n" UNFORMAT);
+    } 
+    else 
+    {
+        printf(RED "Failed. Expected Status: %d Received: %d\n" UNFORMAT, DIV_BY_ZERO, status);
+    }
+    
+	
+    /* Test 5 */
+    printf("TestMentor 5: 8 + + 8 * ( ( 3 - 2 ) * 5 ) = ");
+    status = Calculate(&result, "8++8*((3-2)*5)");
+     if (status == SUCCESS && result == 48) 
+    {
+        printf(GREEN "Passed\n" UNFORMAT);
+    } 
+    else 
+    {
+        printf(RED "Failed. Expected Result: 0, Received: %f, Status: %d\n" UNFORMAT, result, status);
+    }
+    
+    /* Test 6 */
+    printf("TestMentor 6: 3 - 2 ) 5 = ");
+    status = Calculate(&result, "3-2)5");
+    if (status == INVALID_SYNTAX) 
+    {
+        printf(GREEN "Passed\n" UNFORMAT);
+    } 
+    else 
+    {
+        printf(RED "Failed. Expected Status: %d Received: %d\n" UNFORMAT, INVALID_SYNTAX, status);
+    }
+    
+    /* Test 7 */
+    printf("TestMentor 7: ( 3 - 2 ) 5 + 5 ( 4 + 4 + 4 = ");
+    status = Calculate(&result, "(3-2)5+ 5(4+4+4");
+    if (status == INVALID_SYNTAX) 
+    {
+        printf(GREEN "Passed\n" UNFORMAT);
+    } 
+    else 
+    {
+        printf(RED "Failed. Expected Status: %d Received: %d\n" UNFORMAT, INVALID_SYNTAX, status);
+    }
+    
+     /* Test 8 */
+    printf("TestMentor 8: 4 - 3 - 2 - 1 = ");
+    status = Calculate(&result, "4-3-2-1");
+     if (status == SUCCESS && result == -2) 
+    {
+        printf(GREEN "Passed\n" UNFORMAT);
+    } 
+    else 
+    {
+        printf(RED "Failed. Expected Result: -2, Received: %f, Status: %d\n" UNFORMAT, result, status);
+    }
+    
+	/* Test 9 */
+    printf("TestMentor 9: 4 ^ 3 ^ 2 ^ 1 = ");
+    status = Calculate(&result, "4^3^2^1");
+     if (status == SUCCESS && result == 4096) 
+    {
+        printf(GREEN "Passed\n" UNFORMAT);
+    } 
+    else 
+    {
+        printf(RED "Failed. Expected Result: 4096, Received: %f, Status: %d\n" UNFORMAT, result, status);
+    }	
+}
